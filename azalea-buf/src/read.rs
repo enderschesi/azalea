@@ -1,4 +1,4 @@
-use super::{UnsizedByteArray, MAX_STRING_LENGTH};
+use super::UnsizedByteArray;
 use byteorder::{ReadBytesExt, BE};
 use std::{
     backtrace::Backtrace,
@@ -17,8 +17,6 @@ pub enum BufReadError {
     InvalidVarLong,
     #[error("Error reading bytes")]
     CouldNotReadBytes,
-    #[error("The received encoded string buffer length is longer than maximum allowed ({length} > {max_length})")]
-    StringLengthTooLong { length: u32, max_length: u32 },
     #[error("{source}")]
     Io {
         #[from]
@@ -78,15 +76,8 @@ fn read_bytes<'a>(buf: &'a mut Cursor<&[u8]>, length: usize) -> Result<&'a [u8],
     Ok(data)
 }
 
-fn read_utf_with_len(buf: &mut Cursor<&[u8]>, max_length: u32) -> Result<String, BufReadError> {
+fn read_utf(buf: &mut Cursor<&[u8]>) -> Result<String, BufReadError> {
     let length = u32::var_read_from(buf)?;
-    // i don't know why it's multiplied by 4 but it's like that in mojang's code so
-    if length > max_length * 4 {
-        return Err(BufReadError::StringLengthTooLong {
-            length,
-            max_length: max_length * 4,
-        });
-    }
 
     let buffer = read_bytes(buf, length as usize)?;
     let string = std::str::from_utf8(buffer)
@@ -96,9 +87,6 @@ fn read_utf_with_len(buf: &mut Cursor<&[u8]>, max_length: u32) -> Result<String,
             // backtrace: Backtrace::capture(),
         })?
         .to_string();
-    if string.len() > length as usize {
-        return Err(BufReadError::StringLengthTooLong { length, max_length });
-    }
 
     Ok(string)
 }
@@ -227,7 +215,7 @@ impl McBufReadable for Vec<u8> {
 
 impl McBufReadable for String {
     fn read_from(buf: &mut Cursor<&[u8]>) -> Result<Self, BufReadError> {
-        read_utf_with_len(buf, MAX_STRING_LENGTH.into())
+        read_utf(buf)
     }
 }
 

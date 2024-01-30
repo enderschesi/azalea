@@ -1,19 +1,11 @@
-use super::{UnsizedByteArray, MAX_STRING_LENGTH};
+use super::UnsizedByteArray;
 use byteorder::{BigEndian, WriteBytesExt};
 use std::{collections::HashMap, io::Write};
 
-fn write_utf_with_len(
+fn write_utf(
     buf: &mut impl Write,
     string: &str,
-    len: usize,
 ) -> Result<(), std::io::Error> {
-    if string.len() > len {
-        panic!(
-            "String too big (was {} bytes encoded, max {})",
-            string.len(),
-            len
-        );
-    }
     string.as_bytes().to_vec().write_into(buf)?;
     Ok(())
 }
@@ -106,13 +98,13 @@ impl McBufWritable for Vec<u8> {
 
 impl McBufWritable for String {
     fn write_into(&self, buf: &mut impl Write) -> Result<(), std::io::Error> {
-        write_utf_with_len(buf, self, MAX_STRING_LENGTH.into())
+        write_utf(buf, self)
     }
 }
 
 impl McBufWritable for &str {
     fn write_into(&self, buf: &mut impl Write) -> Result<(), std::io::Error> {
-        write_utf_with_len(buf, self, MAX_STRING_LENGTH.into())
+        write_utf(buf, self)
     }
 }
 
