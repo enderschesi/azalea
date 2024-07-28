@@ -469,7 +469,6 @@ version = "0.10.2"
 dependencies = [
  "anyhow",
  "async-recursion",
- "azalea-auth",
  "azalea-block",
  "azalea-brigadier",
  "azalea-buf",

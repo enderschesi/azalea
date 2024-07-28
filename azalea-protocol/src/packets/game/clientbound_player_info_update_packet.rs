@@ -1,4 +1,5 @@
-use azalea_auth::game_profile::{GameProfile, ProfilePropertyValue};
+use crate::packets::login::clientbound_game_profile_packet::GameProfile;
+use crate::packets::login::clientbound_game_profile_packet::ProfilePropertyValue;
 use azalea_buf::{
     BufReadError, McBuf, McBufReadable, McBufVarReadable, McBufVarWritable, McBufWritable,
 };

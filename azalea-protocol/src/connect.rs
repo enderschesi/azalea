@@ -5,14 +5,11 @@ use crate::packets::configuration::{
 };
 use crate::packets::game::{ClientboundGamePacket, ServerboundGamePacket};
 use crate::packets::handshaking::{ClientboundHandshakePacket, ServerboundHandshakePacket};
-use crate::packets::login::clientbound_hello_packet::ClientboundHelloPacket;
 use crate::packets::login::{ClientboundLoginPacket, ServerboundLoginPacket};
 use crate::packets::status::{ClientboundStatusPacket, ServerboundStatusPacket};
 use crate::packets::ProtocolPacket;
 use crate::read::{deserialize_packet, read_raw_packet, try_read_raw_packet, ReadPacketError};
 use crate::write::{serialize_packet, write_raw_packet};
-use azalea_auth::game_profile::GameProfile;
-use azalea_auth::sessionserver::{ClientSessionServerError, ServerSessionServerError};
 use azalea_crypto::{Aes128CfbDec, Aes128CfbEnc};
 use bytes::BytesMut;
 use std::fmt::Debug;
@@ -24,7 +21,6 @@ use tokio::io::{AsyncWriteExt, BufStream};
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf, ReuniteError};
 use tokio::net::TcpStream;
 use tracing::{error, info};
-use uuid::Uuid;
 
 pub struct RawReadConnection {
     pub read_stream: OwnedReadHalf,
@@ -371,76 +367,6 @@ impl Connection<ClientboundLoginPacket, ServerboundLoginPacket> {
     ) -> Connection<ClientboundConfigurationPacket, ServerboundConfigurationPacket> {
         Connection::from(self)
     }
-
-    /// Authenticate with Minecraft's servers, which is required to join
-    /// online-mode servers. This must happen when you get a
-    /// `ClientboundLoginPacket::Hello` packet.
-    ///
-    /// # Examples
-    ///
-    /// ```rust,no_run
-    /// use azalea_auth::AuthResult;
-    /// use azalea_protocol::connect::Connection;
-    /// use azalea_protocol::packets::login::{
-    ///     ClientboundLoginPacket,
-    ///     serverbound_key_packet::ServerboundKeyPacket
-    /// };
-    /// use uuid::Uuid;
-    /// # use azalea_protocol::ServerAddress;
-    ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let AuthResult { access_token, profile } = azalea_auth::auth(
-    ///     "example@example.com",
-    ///     azalea_auth::AuthOpts::default()
-    /// ).await.expect("Couldn't authenticate");
-    /// #
-    /// # let address = ServerAddress::try_from("example@example.com").unwrap();
-    /// # let resolved_address = azalea_protocol::resolver::resolve_address(&address).await?;
-    ///
-    /// let mut conn = Connection::new(&resolved_address).await?;
-    ///
-    /// // transition to the login state, in a real program we would have done a handshake first
-    /// let mut conn = conn.login();
-    ///
-    /// match conn.read().await? {
-    ///     ClientboundLoginPacket::Hello(p) => {
-    ///         // tell Mojang we're joining the server & enable encryption
-    ///         let e = azalea_crypto::encrypt(&p.public_key, &p.challenge).unwrap();
-    ///         conn.authenticate(
-    ///             &access_token,
-    ///             &profile.id,
-    ///             e.secret_key,
-    ///             &p
-    ///         ).await?;
-    ///         conn.write(
-    ///             ServerboundKeyPacket {
-    ///                 key_bytes: e.encrypted_public_key,
-    ///                 encrypted_challenge: e.encrypted_challenge,
-    ///             }.get()
-    ///         ).await?;
-    ///         conn.set_encryption_key(e.secret_key);
-    ///     }
-    ///     _ => {}
-    /// }
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub async fn authenticate(
-        &self,
-        access_token: &str,
-        uuid: &Uuid,
-        private_key: [u8; 16],
-        packet: &ClientboundHelloPacket,
-    ) -> Result<(), ClientSessionServerError> {
-        azalea_auth::sessionserver::join(
-            access_token,
-            &packet.public_key,
-            &private_key,
-            uuid,
-            &packet.server_id,
-        )
-        .await
-    }
 }
 
 impl Connection<ServerboundHandshakePacket, ClientboundHandshakePacket> {
@@ -487,19 +413,6 @@ impl Connection<ServerboundLoginPacket, ClientboundLoginPacket> {
     #[must_use]
     pub fn game(self) -> Connection<ServerboundGamePacket, ClientboundGamePacket> {
         Connection::from(self)
-    }
-
-    /// Verify connecting clients have authenticated with Minecraft's servers.
-    /// This must happen after the client sends a `ServerboundLoginPacket::Key`
-    /// packet.
-    pub async fn authenticate(
-        &self,
-        username: &str,
-        public_key: &[u8],
-        private_key: &[u8; 16],
-        ip: Option<&str>,
-    ) -> Result<GameProfile, ServerSessionServerError> {
-        azalea_auth::sessionserver::serverside_auth(username, public_key, private_key, ip).await
     }
 
     /// Change our state back to configuration.
