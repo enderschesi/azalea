@@ -22,7 +22,6 @@ pub enum BufReadError {
     #[error("{source}")]
     Io {
         #[from]
-        #[backtrace]
         source: std::io::Error,
     },
     #[error("Invalid UTF-8: {bytes:?} (lossy: {lossy:?})")]
@@ -47,19 +46,16 @@ pub enum BufReadError {
     #[error("{source}")]
     Deserialization {
         #[from]
-        #[backtrace]
         source: serde_json::Error,
     },
     #[error("{source}")]
     Nbt {
         #[from]
-        #[backtrace]
         source: simdnbt::Error,
     },
     #[error("{source}")]
     DeserializeNbt {
         #[from]
-        #[backtrace]
         source: simdnbt::DeserializeError,
     },
 }
