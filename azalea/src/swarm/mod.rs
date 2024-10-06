@@ -17,6 +17,7 @@ use parking_lot::{Mutex, RwLock};
 use std::{collections::HashMap, future::Future, net::SocketAddr, sync::Arc, time::Duration};
 use tokio::sync::mpsc;
 use tracing::error;
+use std::boxed::Box;
 
 use crate::{BoxHandleFn, DefaultBotPlugins, HandleFn, JoinOpts, NoState, StartError};
 
@@ -155,7 +156,7 @@ where
     #[must_use]
     pub fn set_handler<S, Fut>(self, handler: HandleFn<S, Fut>) -> SwarmBuilder<S, SS>
     where
-        Fut: Future<Output = Result<(), anyhow::Error>> + Send + 'static,
+        Fut: Future<Output = Result<(), Box<dyn std::error::Error>>> + Send + 'static,
         S: Send + Sync + Clone + Component + Default + 'static,
     {
         SwarmBuilder {
@@ -204,7 +205,7 @@ where
     pub fn set_swarm_handler<SS, Fut>(self, handler: SwarmHandleFn<SS, Fut>) -> SwarmBuilder<S, SS>
     where
         SS: Default + Send + Sync + Clone + Resource + 'static,
-        Fut: Future<Output = Result<(), anyhow::Error>> + Send + 'static,
+        Fut: Future<Output = Result<(),  Box<dyn std::error::Error>>> + Send + 'static,
     {
         SwarmBuilder {
             handler: self.handler,
@@ -486,7 +487,7 @@ pub enum SwarmEvent {
 
 pub type SwarmHandleFn<SS, Fut> = fn(Swarm, SwarmEvent, SS) -> Fut;
 pub type BoxSwarmHandleFn<SS> =
-    Box<dyn Fn(Swarm, SwarmEvent, SS) -> BoxFuture<'static, Result<(), anyhow::Error>> + Send>;
+    Box<dyn Fn(Swarm, SwarmEvent, SS) -> BoxFuture<'static, Result<(),  Box<dyn std::error::Error>>> + Send>;
 
 /// Make a bot [`Swarm`].
 ///
