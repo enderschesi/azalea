@@ -39,15 +39,20 @@ use ecs::component::Component;
 use futures::{future::BoxFuture, Future};
 use protocol::connect::Proxy;
 use protocol::{resolver::ResolverError, ServerAddress};
+use std::boxed::Box;
 use swarm::SwarmBuilder;
 use thiserror::Error;
-use std::boxed::Box;
 
 pub use bevy_app as app;
 pub use bevy_ecs as ecs;
 
-pub type BoxHandleFn<S> =
-    Box<dyn Fn(Client, azalea_client::Event, S) -> BoxFuture<'static, Result<(), Box<dyn std::error::Error>>>>;
+pub type BoxHandleFn<S> = Box<
+    dyn Fn(
+        Client,
+        azalea_client::Event,
+        S,
+    ) -> BoxFuture<'static, Result<(), Box<dyn std::error::Error + Send>>>,
+>;
 pub type HandleFn<S, Fut> = fn(Client, azalea_client::Event, S) -> Fut;
 
 #[derive(Error, Debug)]
@@ -144,7 +149,7 @@ impl ClientBuilder<NoState> {
     pub fn set_handler<S, Fut>(self, handler: HandleFn<S, Fut>) -> ClientBuilder<S>
     where
         S: Default + Send + Sync + Clone + Component + 'static,
-        Fut: Future<Output = Result<(),  Box<dyn std::error::Error>>> + Send + 'static,
+        Fut: Future<Output = Result<(), Box<dyn std::error::Error + Send>>> + Send + 'static,
     {
         ClientBuilder {
             swarm: self.swarm.set_handler(handler),
